@@ -154,7 +154,6 @@ void seamCarvingHost(uint8_t * inPixels, int width, int height, uint8_t* outPixe
 	int * cost_v = (int*)malloc(width*height*sizeof(int));
 	int * importancy_h = (int*)malloc(width*height*sizeof(int));
 	int * next_pixels_v = (int*)malloc(height*sizeof(int));
-	int * next_pixels_h = (int*)malloc((width-1)*height*sizeof(int));
 
 	for(int count = 0; count < times; count++)
 	{
@@ -258,20 +257,16 @@ void seamCarvingHost(uint8_t * inPixels, int width, int height, uint8_t* outPixe
 			next_pixels_v[i] = i * width + seam[i];
 		}
 
-		for ( int i = 0; i < height; i++)
-		{
-			printf("seam: %d\n", next_pixels_v[i]);
-		}
 
 
 		//Test seam finding
-		for(int i = 0; i < height; i++)
-		{
-			inPixels[3*next_pixels_v[i]] = 255;
-			inPixels[3*next_pixels_v[i] + 1] = 1;
-			inPixels[3*next_pixels_v[i] + 2] = 1;
-		}
-		writePnm(inPixels, 3, width, height, "v1_host_seam.pnm");
+		// for(int i = 0; i < height; i++)
+		// {
+		// 	inPixels[3*next_pixels_v[i]] = 255;
+		// 	inPixels[3*next_pixels_v[i] + 1] = 1;
+		// 	inPixels[3*next_pixels_v[i] + 2] = 1;
+		// }
+		// writePnm(inPixels, 3, width, height, "v1_host_seam.pnm");
 
 
 
@@ -281,30 +276,32 @@ void seamCarvingHost(uint8_t * inPixels, int width, int height, uint8_t* outPixe
 			{
 				for(int j = 0; j < width; j++)
 				{
-					if(j + i * width < next_pixels_v[0])
-					{
-						outPixels[3*(j + i * width)] = inPixels[3*(j + i * width)];
-						outPixels[3*(j + i * width)+1] = inPixels[3*(j + i * width)+1];
-						outPixels[3*(j + i * width)+2] = inPixels[3*(j + i * width)+2];
+					
+					if (j + i * width >= next_pixels_v[idx] - idx){
+						idx++;
 					}
-					else 
-					{
-						if(j + i * width >= next_pixels_v[idx+1] - idx - 1) idx++;
 
-						if(j + i * width + idx + 1 > width*height - 1) break;
-						
-						outPixels[3*(j + i * width)] = inPixels[3*(j + i * width + idx + 1)];
-						outPixels[3*(j + i * width)+1] = inPixels[3*(j + i * width + idx + 1)+1];
-						outPixels[3*(j + i * width)+2] = inPixels[3*(j + i * width + idx + 1)+2];
+					if(j + i * width + idx > width*height - 1) break;
+
+					if (i == 433)
+					{
+						printf("idx: %d", idx);
+						printf("   out_idx: %d", 3*(j + i * width));
+						printf("   in_idx: %d\n", 3*(j + i * width + idx));
 					}
+						
+					inPixels[3*(j + i * width)] = inPixels[3*(j + i * width + idx)];
+					inPixels[3*(j + i * width)+1] = inPixels[3*(j + i * width + idx)+1];
+					inPixels[3*(j + i * width)+2] = inPixels[3*(j + i * width + idx)+2];
+					
+					
 				}
 			}
 
 		width--;
-		inPixels = outPixels;
 		
 	}
-
+	outPixels = inPixels;
 	writePnm(outPixels, 3, width, height, "v1_host_out.pnm");
 }
 
