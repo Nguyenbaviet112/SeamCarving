@@ -41,7 +41,7 @@ Theo Wikipedia :
 * *Hãy xem [video giải thích](https://youtu.be/6NcIJXTlugc) này để hiểu thêm chi tiết.*
 
 
-![image](https://drive.google.com/uc?id=1MU6FCaEDSWlqX8osiN5oRoKe76gBOV6s)
+![Sample gif](https://drive.google.com/uc?id=1pJxGOdxTyCQQKM0DWfgSeEbPNelBurR4)
 
 ### 2. Một Seam là gì?
 
