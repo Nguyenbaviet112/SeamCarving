@@ -41,7 +41,7 @@ Theo Wikipedia :
 * *Hãy xem [video giải thích](https://youtu.be/6NcIJXTlugc) này để hiểu thêm chi tiết.*
 
 
-![image](./img/lake_shrink.gif)
+![image](https://drive.google.com/uc?id=1MU6FCaEDSWlqX8osiN5oRoKe76gBOV6s)
 
 ### 2. Một Seam là gì?
 
@@ -52,10 +52,7 @@ to bottom in an image with one pixel in each row.** A horizontal seam is similar
 connection being from left to right. The importance/energy function values a pixel by measuring its
 contrast with its neighbor pixels.
 
-
 * *Một seam: một tập các pixel, mỗi dòng một pixel, pixel của dòng r & dòng r+1 được kết nối với nhau.*
-
-
 
 
 ## II. Nội dung
@@ -63,7 +60,11 @@ contrast with its neighbor pixels.
 
 - Input: một ảnh đầu vào RGB `in.pnm`
 
+![image](https://drive.google.com/uc?id=154_BR4vkQW6cnE38xxpzF8VAu9p9D_pd)
+
 - Output: một ảnh đầu ra RGB `out.pnm` được thay đổi kích thước **mà không làm biến dạng các đối tượng quan trọng** (tấm ảnh được thu hẹp chiều rộng lại).
+
+![image](https://drive.google.com/uc?id=1KI3J_aa9SNJDOAAoANj-PeuXDwdp_LFu)
 
 - File khung chương trình `seamcarving_v1.cu`.
 
@@ -81,7 +82,10 @@ contrast with its neighbor pixels.
 
 
 
-### 3. Cài đặt tuần tự (Ý tưởng)
+### III. Cài đặt tuần tự 
+
+
+#### 1. Ý tưởng
 
 Thực hiện tuần từ qua các bước:
 
@@ -101,7 +105,7 @@ Các giá trị pixel xám kết quả được lưu trữ trong mảng **inGray
 >
 > - Độ quan trọng của một pixel = |kết quả tương ứng của (1)| + |kết quả tương ứng của (2)|
 
-![image](./img/energy.png)
+![image](https://drive.google.com/uc?id=17_PF-IO4FK60l0BU5-05Lma43c0wUjah)
 
 - **Bước 4. Tính ma trận chi phí theo chiều dọc:** Hàm tính toán ma trận chi phí theo chiều dọc của ảnh. Ma trận `cost_v` có cùng kích thước với ảnh xám và được khởi tạo bằng các giá trị mức độ quan trọng từ mảng `energy`. Tiếp theo, hàm duyệt qua từng hàng của ma trận `cost_v` từ trên xuống dưới và từ trái sang phải. Tại mỗi vị trí, chi phí của pixel được tính toán bằng cách xem xét đường đi có chi phí nhỏ nhất từ hàng bên dưới. Chi phí của mỗi pixel trong ma trận `cost_v` được cập nhật dựa trên chi phí tính toán và mức độ quan trọng của pixel tương ứng.
 
@@ -113,9 +117,9 @@ Các giá trị pixel xám kết quả được lưu trữ trong mảng **inGray
 >
 > Nếu j không nằm ở cột đầu tiên hoặc cuối cùng, lấy giá trị nhỏ nhất của hai phần tử bên trái và bên phải của nó trong hàng trên cùng của ma trận cost_v rồi cộng với energy[i][j]
 
-![image](/img/cost_v.png)
+![image](https://drive.google.com/uc?id=1UiGRuGpjnDOPHq70Ihcbf32b2W4h4O_U)
 
-- **Bước 4: Tìm Seam nhỏ nhất:** Hàm tìm Seam nhỏ nhất bằng cách xác định đường đi có tổng chi phí nhỏ nhất từ đỉnh đến đáy của ma trận `cost_v`. Quá trình này được thực hiện theo các bước sau:
+- **Bước 5. Tìm Seam nhỏ nhất:** Hàm tìm Seam nhỏ nhất bằng cách xác định đường đi có tổng chi phí nhỏ nhất từ đỉnh đến đáy của ma trận `cost_v`. Quá trình này được thực hiện theo các bước sau:
 
    - Đầu tiên, Seam nhỏ nhất được khởi tạo bằng cách tìm pixel có chi phí nhỏ nhất ở hàng cuối cùng của ma trận `cost_v`. Giá trị của pixel này được ghi lại vào mảng `next_pixels_v` tại vị trí tương ứng.
 
@@ -125,5 +129,23 @@ Các giá trị pixel xám kết quả được lưu trữ trong mảng **inGray
 
   Quá trình tìm Seam nhỏ nhất này xảy ra theo chiều dọc, tạo ra một đường đi từ đỉnh đến đáy của ảnh.
 
+  ![image](https://drive.google.com/uc?id=1x5xTymCw-v1rG7ULmftweBE1Po2NGL1h)
 
-![image](/img/seam.png)
+- **Bước 6. Xóa Seam nhỏ nhất:** Bước này nhằm loại bỏ Seam nhỏ nhất khỏi ảnh ban đầu. Quá trình này được thực hiện như sau:
+
+  - Một vòng lặp duyệt qua từng hàng của ảnh được thực hiện. Trong mỗi hàng, ta duyệt qua từng pixel trên hàng đó.
+
+  - Nếu pixel hiện tại nằm trước vị trí Seam nhỏ nhất (tức là có chỉ số nhỏ hơn), ta giữ nguyên giá trị của pixel đó và sao chép nó vào ảnh kết quả.
+
+  - Ngược lại, nếu pixel hiện tại nằm sau vị trí Seam nhỏ nhất, ta dịch chuyển chỉ số của pixel hiện tại sang trái một vị trí (bỏ qua Seam nhỏ nhất). Sau đó, ta sao chép giá trị của pixel sau dịch chuyển vào ảnh kết quả.
+  - Quá trình trên được lặp lại cho tất cả các hàng của ảnh.
+
+  Sau khi hoàn thành vòng lặp, chiều rộng của ảnh sẽ được giảm đi một đơn vị do Seam nhỏ nhất đã được loại bỏ. Ảnh kết quả sẽ được lưu vào mảng `outPixels`.
+
+- **Bước 7. Ghi ảnh kết quả:** Bước này nhằm ghi lại ảnh kết quả sau khi đã xóa Seam nhỏ nhất từ ảnh ban đầu.
+
+#### 2. Tiến hành
+
+Tiến hành chạy chương trình SeamCarving tuần tự trên:
+
+- Đầu vào là ảnh có kích thước 640x434 tạo ra ba ảnh có chiều rộng lần lượt là 400, 300, 200
