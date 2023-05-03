@@ -163,10 +163,11 @@ __global__ void convertRgb2GrayKernel(uint8_t * inPixels, int width, int height,
 	}
 }
 
-__global__ void edgeDetectionKernel(uint8_t * inGrayscale, int width, int height, 
-	int * filterX, int* filterY, int filterWidth, 
+__global__ void edgeDetectionKernel(uint8_t * inPixels, int width, int height, 
+	float * filterX, float* filterY, int filterWidth, 
 	int * energy)
 {
+
 	int c = threadIdx.x + blockIdx.x * blockDim.x;
 	int r = threadIdx.y + blockIdx.y * blockDim.y;
     
@@ -188,17 +189,17 @@ __global__ void edgeDetectionKernel(uint8_t * inGrayscale, int width, int height
 					
 			inPixelsR = min(max(0, inPixelsR), height - 1);
 			inPixelsC = min(max(0, inPixelsC), width - 1);
-			uint8_t inPixel = inGrayscale[inPixelsR*width + inPixelsC];
+			uint8_t inPixel = inPixels[inPixelsR*width + inPixelsC];
 			importancy_X += filterValX * inPixel;
 			importancy_Y += filterValY * inPixel;
 		}
 	}
 	energy[r*width + c] = abs(importancy_X) + abs(importancy_Y);
+
 }
 
 __global__ void compute_cost_v(int *energy, int width, int height) {
 
-    // TODO
 	int i = threadIdx.x + threadIdx.y*blockDim.x + gridDim.x*blockIdx.x;
 	int min;
 	if(i < width)
@@ -218,6 +219,8 @@ __global__ void compute_cost_v(int *energy, int width, int height) {
 			__syncthreads();
 		}
 	}
+
+
 
 }
 
@@ -269,7 +272,7 @@ __global__ void removeSeamKernel(uint8_t * inPixels, int width, int height,
 }		
 
 void seamCarvingKernel(uint8_t * inPixels, int width, int height, uint8_t * outPixels,
-			int * filterX, int * filterY, int filterWidth, dim3 blockSize=dim3(1, 1),
+			float * filterX, float * filterY, int filterWidth, dim3 blockSize=dim3(1, 1),
         	int times = 1)
 {
 	// TODO
@@ -278,7 +281,8 @@ void seamCarvingKernel(uint8_t * inPixels, int width, int height, uint8_t * outP
 	int * seam = (int*)malloc(height*sizeof(int));
 	int * next_pixels_v = (int*)malloc(height*sizeof(int));
     int * cost_v = (int*)malloc(width*height*sizeof(int));
-	int * d_energy, *d_next_pixels_v, *d_filterX, *d_filterY, *d_seam, *d_cost_v;
+	int * d_energy, *d_next_pixels_v, *d_seam, *d_cost_v;
+	float * d_filterX, * d_filterY;
 
 	inGrayscale = (uint8_t*)malloc(width*height*sizeof(uint8_t));
 	CHECK(cudaMalloc(&d_inPixels, width*height*3*sizeof(uint8_t)));
@@ -288,14 +292,15 @@ void seamCarvingKernel(uint8_t * inPixels, int width, int height, uint8_t * outP
     CHECK(cudaMalloc(&d_cost_v, width*height*sizeof(int)));
 	CHECK(cudaMalloc(&d_next_pixels_v, height*sizeof(int)));
 	CHECK(cudaMalloc(&d_seam, height*sizeof(int)));
-	CHECK(cudaMalloc(&d_filterX, filterWidth*filterWidth*sizeof(int)));	
-	CHECK(cudaMalloc(&d_filterY, filterWidth*filterWidth*sizeof(int)));	
+	CHECK(cudaMalloc(&d_filterX, filterWidth*filterWidth*sizeof(float)));	
+	CHECK(cudaMalloc(&d_filterY, filterWidth*filterWidth*sizeof(float)));	
 
 	dim3 gridSize((width-1)/blockSize.x + 1, (height-1)/blockSize.y + 1);
 	dim3 gridSize_flatten((width-1)/(blockSize.x*blockSize.y) + 1);
 
-	CHECK(cudaMemcpy(d_filterX, filterX, filterWidth*filterWidth*sizeof(int), cudaMemcpyHostToDevice));
-	CHECK(cudaMemcpy(d_filterY, filterY, filterWidth*filterWidth*sizeof(int), cudaMemcpyHostToDevice));
+
+	CHECK(cudaMemcpy(d_filterX, filterX, filterWidth*filterWidth*sizeof(float), cudaMemcpyHostToDevice));
+	CHECK(cudaMemcpy(d_filterY, filterY, filterWidth*filterWidth*sizeof(float), cudaMemcpyHostToDevice));
 	
 
 	for(int count = 0; count < times; count++)
@@ -310,7 +315,7 @@ void seamCarvingKernel(uint8_t * inPixels, int width, int height, uint8_t * outP
 		cudaDeviceSynchronize();
 		CHECK(cudaGetLastError());
 
-
+		
 		compute_cost_v<<<gridSize_flatten, blockSize>>>(d_energy, width, height);
 		cudaDeviceSynchronize();
 		CHECK(cudaGetLastError());
@@ -365,7 +370,7 @@ void seamCarvingKernel(uint8_t * inPixels, int width, int height, uint8_t * outP
 }
 			
 void seamCarvingHost(uint8_t * inPixels, int width, int height, uint8_t* outPixels, 
-	int * filterX, int * filterY, int filterWidth, int times)
+	float * filterX, float * filterY, int filterWidth, int times)
 {
 	
 	int temp = filterWidth / 2;
@@ -505,7 +510,7 @@ void seamCarvingHost(uint8_t * inPixels, int width, int height, uint8_t* outPixe
 	
 }
 
-void seamCarving(uint8_t * inPixels, int width, int height, int * filterX, int* filterY, int filterWidth,
+void seamCarving(uint8_t * inPixels, int width, int height, float * filterX, float * filterY, int filterWidth,
         uint8_t * outPixels, int times=1,
         bool useDevice=false, dim3 blockSize=dim3(1, 1))
 {
@@ -599,13 +604,14 @@ int main(int argc, char ** argv)
 
 	// Set up a simple filter with blurring effect 
 	int filterWidth = FILTER_WIDTH;
-	int filterX[] = {1, 0, -1,
-					2, 0, -2,
-					1, 0, -1};
 
-	int filterY[] = {1, 2, 1, 
-					0, 0, 0,
-					-1, -2, -1};
+	float filterX[9] = {1.0, 0.0, -1.0,
+                        2.0, 0.0, -2.0,
+                        1.0, 0.0, -1.0};
+    float filterY[9] = {1.0, 2.0, 1.0,
+                        0.0, 0.0, 0.0,
+                        -1.0, -2.0, -1.0};
+
 
 	// Blur input image not using device
 	uint8_t * correctOutPixels = (uint8_t *)malloc(width * height * numChannels * sizeof(uint8_t)); 
